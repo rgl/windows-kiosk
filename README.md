@@ -19,3 +19,7 @@ When you are done, destroy the vagrant environment:
 ```bash
 vagrant destroy -f
 ```
+
+## References
+
+* [Unbranded Boot](https://learn.microsoft.com/en-us/windows/configuration/unbranded-boot/?tabs=powershell1%2Ccmd)

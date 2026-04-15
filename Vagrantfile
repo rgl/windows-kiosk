@@ -101,4 +101,5 @@ Vagrant.configure(2) do |config|
   end
 
   config.vm.provision "shell", path: "ps.ps1", args: "provision-chocolatey.ps1"
+  config.vm.provision "shell", path: "ps.ps1", args: "provision-unbranded-boot.ps1"
 end
