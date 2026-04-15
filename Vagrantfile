@@ -104,4 +104,6 @@ Vagrant.configure(2) do |config|
   config.vm.provision "shell", path: "ps.ps1", args: "provision-unbranded-boot.ps1"
   config.vm.provision "shell", path: "ps.ps1", args: "provision-keyboard-filter-feature.ps1", reboot: true
   config.vm.provision "shell", path: "ps.ps1", args: "provision-keyboard-filter.ps1"
+  config.vm.provision "shell", path: "ps.ps1", args: "provision-windows-kiosk-test-app.ps1"
+  config.vm.provision "shell", path: "provision-windows-kiosk.ps1", reboot: true
 end
