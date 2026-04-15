@@ -23,3 +23,5 @@ vagrant destroy -f
 ## References
 
 * [Unbranded Boot](https://learn.microsoft.com/en-us/windows/configuration/unbranded-boot/?tabs=powershell1%2Ccmd)
+* [Keyboard Filter](https://learn.microsoft.com/en-us/windows/configuration/keyboard-filter/)
+  * [Predefined key combinations](https://learn.microsoft.com/en-us/windows/configuration/keyboard-filter/predefined-key-combinations)
