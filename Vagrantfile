@@ -1,0 +1,104 @@
+# enable typed triggers.
+# NB this is needed to modify the libvirt domain scsi controller model to virtio-scsi.
+ENV['VAGRANT_EXPERIMENTAL'] = 'typed_triggers'
+
+VM_CPUS = 4
+VM_MEMORY_MB = 4*1024
+
+require 'open3'
+
+Vagrant.configure(2) do |config|
+  config.vm.box = 'windows-11-24h2-uefi-amd64'
+
+  config.vm.hostname = 'kiosk'
+
+  config.vm.provider 'libvirt' do |lv, config|
+    lv.memory = VM_MEMORY_MB
+    lv.cpus = VM_CPUS
+    lv.cpu_mode = 'host-passthrough'
+    lv.keymap = 'pt'
+    lv.nested = true
+    lv.disk_bus = 'scsi'
+    lv.disk_device = 'sda'
+    lv.disk_driver :discard => 'unmap', :cache => 'unsafe'
+    config.trigger.before :'VagrantPlugins::ProviderLibvirt::Action::StartDomain', type: :action do |trigger|
+      trigger.ruby do |env, machine|
+        # modify the scsi controller model to virtio-scsi.
+        # see https://github.com/vagrant-libvirt/vagrant-libvirt/pull/692
+        # see https://github.com/vagrant-libvirt/vagrant-libvirt/issues/999
+        stdout, stderr, status = Open3.capture3(
+          'virt-xml', machine.id,
+          '--edit', 'type=scsi',
+          '--controller', 'model=virtio-scsi')
+        if status.exitstatus != 0
+          raise "failed to run virt-xml to modify the scsi controller model. status=#{status.exitstatus} stdout=#{stdout} stderr=#{stderr}"
+        end
+      end
+    end
+    config.vm.synced_folder '.', '/vagrant',
+      disabled: false,
+      type: 'smb',
+      smb_username: ENV['VAGRANT_SMB_USERNAME'] || ENV['USER'],
+      smb_password: ENV['VAGRANT_SMB_PASSWORD']
+  end
+
+  config.vm.provider 'hyperv' do |hv, config|
+    hv.linked_clone = true
+    hv.memory = VM_MEMORY_MB
+    hv.cpus = VM_CPUS
+    hv.enable_virtualization_extensions = true # nested virtualization.
+    hv.vlan_id = ENV['HYPERV_VLAN_ID']
+    # see https://github.com/hashicorp/vagrant/issues/7915
+    # see https://github.com/hashicorp/vagrant/blob/10faa599e7c10541f8b7acf2f8a23727d4d44b6e/plugins/providers/hyperv/action/configure.rb#L21-L35
+    config.vm.network :private_network, bridge: ENV['HYPERV_SWITCH_NAME'] if ENV['HYPERV_SWITCH_NAME']
+    config.vm.synced_folder '.', '/vagrant',
+      disabled: false,
+      type: 'smb',
+      smb_username: ENV['VAGRANT_SMB_USERNAME'] || ENV['USER'],
+      smb_password: ENV['VAGRANT_SMB_PASSWORD']
+    # configure the hyper-v vm.
+    config.trigger.before :'VagrantPlugins::HyperV::Action::StartInstance', type: :action do |trigger|
+      trigger.ruby do |env, machine|
+        system(
+          'PowerShell',
+          '-NoLogo',
+          '-NoProfile',
+          '-NonInteractive',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-Command',
+          <<~COMMAND
+            $vmName = '#{machine.provider_config.vmname}'
+            # enable all the integration services.
+            # NB because, for some reason, sometimes "Guest Service Interface" is not enabled.
+            Get-VMIntegrationService $vmName | Enable-VMIntegrationService
+          COMMAND
+        )
+      end
+    end
+  end
+
+  config.vm.provider 'vsphere' do |vsphere, config|
+    vsphere.name = ENV['VSPHERE_VM_NAME']
+    vsphere.notes = "Created from #{__FILE__}"
+    vsphere.memory_mb = VM_MEMORY_MB
+    vsphere.cpu_count = VM_CPUS
+    vsphere.user = ENV['GOVC_USERNAME']
+    vsphere.password = ENV['GOVC_PASSWORD']
+    vsphere.insecure = true
+    vsphere.host = ENV['GOVC_HOST']
+    vsphere.data_center_name = ENV['GOVC_DATACENTER']
+    vsphere.compute_resource_name = ENV['GOVC_CLUSTER']
+    vsphere.data_store_name = ENV['GOVC_DATASTORE']
+    vsphere.template_name = ENV['VSPHERE_TEMPLATE_NAME']
+    vsphere.vm_base_path = ENV['VSPHERE_VM_FOLDER']
+    vsphere.vlan = ENV['VSPHERE_VLAN']
+    config.vm.synced_folder '.', '/vagrant',
+      disabled: false,
+      type: 'smb',
+      smb_username: ENV['VAGRANT_SMB_USERNAME'] || ENV['USER'],
+      smb_password: ENV['VAGRANT_SMB_PASSWORD']
+  end
+
+  config.vm.provision "shell", path: "ps.ps1", args: "provision-chocolatey.ps1"
+end
