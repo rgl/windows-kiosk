@@ -16,6 +16,47 @@ trap {
 $kioskUser = 'kioskUser0'
 $windowsKioskTestAppPath = "C:\Program Files\WindowsKioskTestApp\WindowsKioskTestApp.exe"
 
+function Start-AsScheduledTask([string]$taskName, [bool]$runningAsScheduledTask) {
+    $transcriptPath = "C:\tmp\$taskName.log"
+
+    if ($runningAsScheduledTask) {
+        Start-Transcript $transcriptPath
+
+        return
+    }
+
+    Write-Host "Registering the Scheduled Task $taskName to run $PSCommandPath..."
+    $action = New-ScheduledTaskAction `
+        -Execute 'PowerShell.exe' `
+        -Argument "-NoProfile -ExecutionPolicy Bypass $PSCommandPath -RunningAsScheduledTask"
+    Register-ScheduledTask `
+        -TaskName $taskName `
+        -Action $action `
+        -User 'SYSTEM' `
+        | Out-Null
+    Start-ScheduledTask `
+        -TaskName $taskName
+
+    Write-Host 'Waiting for the Scheduled Task to complete...'
+    while ((Get-ScheduledTask -TaskName $taskName).State -ne 'Ready') {
+        Start-Sleep -Seconds 1
+    }
+    $taskInfo = Get-ScheduledTaskInfo -TaskName $taskName
+    $taskResult = $taskInfo.LastTaskResult
+
+    Write-Host 'Unregistering Scheduled Task...'
+    Unregister-ScheduledTask `
+        -TaskName $taskName `
+        -Confirm:$false
+
+    Write-Host 'Scheduled Task output:'
+    Get-Content -ErrorAction SilentlyContinue $transcriptPath
+    Write-Host "Scheduled Task result: $taskResult"
+    Remove-Item $transcriptPath
+
+    Exit 0
+}
+
 function Set-WindowsKioskShellLauncher {
     # configure the shell launcher.
     # see https://learn.microsoft.com/en-us/windows/configuration/shell-launcher/quickstart-kiosk?tabs=ps
@@ -49,7 +90,7 @@ function Set-WindowsKioskShellLauncher {
     </Configs>
 </ShellLauncherConfiguration>
 "@
-    $aa = Get-CimInstance -Namespace root/cimv2/mdm/dmmap -ClassName MDM_AssignedAccess
+    $aa = Get-CimInstance -Namespace root\cimv2\mdm\dmmap -ClassName MDM_AssignedAccess
     $aa.ShellLauncher = [System.Net.WebUtility]::HtmlEncode($shellLauncherConfiguration)
     $aa | Set-CimInstance
 
@@ -62,40 +103,6 @@ function Set-WindowsKioskShellLauncher {
     Write-Output "The $kioskUser ($($localKioskUser.SID.Value)) Kiosk User exists."
 }
 
-$taskName = 'windows-kiosk-configure'
-$transcriptPath = "C:\tmp\$taskName.log"
+Start-AsScheduledTask 'windows-kiosk-configure' $RunningAsScheduledTask
 
-if ($RunningAsScheduledTask) {
-    Start-Transcript $transcriptPath
-
-    Set-WindowsKioskShellLauncher
-} else {
-    Write-Host "Registering the Scheduled Task $taskName to run $PSCommandPath..."
-    $action = New-ScheduledTaskAction `
-        -Execute 'PowerShell.exe' `
-        -Argument "-NoProfile -ExecutionPolicy Bypass $PSCommandPath -RunningAsScheduledTask"
-    Register-ScheduledTask `
-        -TaskName $taskName `
-        -Action $action `
-        -User 'SYSTEM' `
-        | Out-Null
-    Start-ScheduledTask `
-        -TaskName $taskName
-
-    Write-Output 'Waiting for the Scheduled Task to complete...'
-    while ((Get-ScheduledTask -TaskName $taskName).State -ne 'Ready') {
-        Start-Sleep -Seconds 1
-    }
-    $taskInfo = Get-ScheduledTaskInfo -TaskName $taskName
-    $taskResult = $taskInfo.LastTaskResult
-
-    Write-Output 'Unregistering Scheduled Task...'
-    Unregister-ScheduledTask `
-        -TaskName $taskName `
-        -Confirm:$false
-
-    Write-Output 'Scheduled Task output:'
-    Get-Content -ErrorAction SilentlyContinue $transcriptPath
-    Write-Output "Scheduled Task result: $taskResult"
-    Remove-Item $transcriptPath
-}
+Set-WindowsKioskShellLauncher
