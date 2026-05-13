@@ -18,7 +18,7 @@ At the machine console you should see the [WindowsKioskTestApp](https://github.c
 
 Try executing the calculator.
 
-Then try executing the other applications, they should fail to execute due to the App Locker policy that is applied to the Kiosk user.
+Then try executing the other applications, they should fail to execute with an error like `This program is blocked by group policy` due to the App Locker policy that is applied to the Kiosk user.
 
 When you are done, destroy the vagrant environment:
 
