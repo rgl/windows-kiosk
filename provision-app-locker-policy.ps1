@@ -73,23 +73,5 @@ function Set-AppLockerConfiguration {
     Remove-Item $policyXmlPath
 }
 
-function Format-Xml {
-    [CmdletBinding()]
-    param(
-        [Parameter(ValueFromPipeline = $true)]
-        [xml]$InputObject
-    )
-    process {
-        $stringWriter = New-Object System.IO.StringWriter
-        $xmlWriter = New-Object System.Xml.XmlTextWriter($stringWriter)
-        $xmlWriter.Formatting = [System.Xml.Formatting]::Indented
-        $xmlWriter.Indentation = 4
-        $InputObject.WriteContentTo($xmlWriter)
-        $xmlWriter.Flush()
-        $stringWriter.Flush()
-        $stringWriter.ToString()
-    }
-}
-
 Write-Output "Setting up the App Locker configuration..."
 Set-AppLockerConfiguration
