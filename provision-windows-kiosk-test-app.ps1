@@ -1,4 +1,4 @@
-$url = "https://github.com/rgl/windows-kiosk-test-app/releases/download/v0.0.3/WindowsKioskTestApp.zip"
+$url = "https://github.com/rgl/windows-kiosk-test-app/releases/download/v0.0.4/WindowsKioskTestApp.zip"
 $localZipPath = "$env:TEMP\WindowsKioskTestApp.zip"
 $destinationPath = "C:\Program Files\WindowsKioskTestApp"
 (New-Object System.Net.WebClient).DownloadFile($url, $localZipPath)
