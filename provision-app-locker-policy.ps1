@@ -1,7 +1,12 @@
-$kioskUser = 'kioskUser0'
+$autoLogonKeyPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon'
+$kioskUserFullName = (Get-ItemProperty -Path $autoLogonKeyPath -Name DefaultUserName).DefaultUserName
+if ($kioskUserFullName -notmatch '^.+\\') {
+    $kioskUserFullName = "$env:COMPUTERNAME\\$kioskUserFullName"
+}
+$kioskUserName = $kioskUserFullName -replace '^.+\\',''
 
 function Set-AppLockerConfiguration {
-    $kioskUserSid = (Get-LocalUser -Name $kioskUser).SID.Value
+    $kioskUserSid = (Get-LocalUser -Name $kioskUserName).SID.Value
     # see https://learn.microsoft.com/en-us/windows/security/application-security/application-control/app-control-for-business/applocker/working-with-applocker-rules#path
     $policyTemplateXml = @"
 <AppLockerPolicy Version="1">
@@ -73,5 +78,5 @@ function Set-AppLockerConfiguration {
     Remove-Item $policyXmlPath
 }
 
-Write-Output "Setting up the App Locker configuration..."
+Write-Output "Setting up the App Locker configuration for the $kioskUserName user..."
 Set-AppLockerConfiguration
