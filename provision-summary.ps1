@@ -78,8 +78,10 @@ function Write-Title($title) {
 
 Start-AsScheduledTask 'summary' $RunningAsScheduledTask
 
-Write-Title "Application Identity (AppIDSvc) service status"
-Get-Service AppIDSvc
+Write-Title "App Locker services status"
+Get-Service AppLockerFltr,AppID,AppIDSvc `
+    | Format-Table `
+        -Property Name,DisplayName,RequiredServices,StartType,Status
 
 Write-Title "App Locker Policy"
 Get-AppLockerPolicy -Local `
